@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MMC Copilot</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --brand: #3466FF; --brand-light: rgba(52,102,255,0.08); --brand-mid: rgba(52,102,255,0.2);
+    --bg: #F5F6FA; --surface: #FFFFFF; --surface-2: #EEF0F6; --surface-3: #E5E8F0;
+    --border: rgba(0,0,0,0.07); --border-mid: rgba(0,0,0,0.11);
+    --text-primary: #0F1523; --text-secondary: #5A6280; --text-muted: #9BA3BF;
+    --success: #0EA86A; --success-light: rgba(14,168,106,0.1);
+    --warning: #E07A00; --warning-light: rgba(224,122,0,0.1);
+    --danger: #D93025;
+    --radius: 18px; --radius-sm: 12px; --radius-xs: 8px;
+  }
+  html, body { height: 100%; background: #C8CCDA; display: flex; justify-content: center; align-items: center; font-family: 'Sora', sans-serif; overflow: hidden; }
+  .phone { width: 390px; height: 844px; background: var(--bg); border-radius: 48px; overflow: hidden; position: relative; box-shadow: 0 40px 100px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.07); display: flex; flex-direction: column; transform-origin: center center; }
+  .mi { font-family: 'Material Icons Round'; font-style: normal; font-weight: normal; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; -webkit-font-feature-settings: 'liga'; font-feature-settings: 'liga'; }
+  .status-bar { padding: 14px 28px 8px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .status-time { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .status-icons { display: flex; gap: 6px; align-items: center; color: var(--text-primary); }
+  .screen { display: none; flex-direction: column; height: 100%; }
+  .screen.active { display: flex; }
+  .scroll-area { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; min-height: 0; }
+  .scroll-area::-webkit-scrollbar { display: none; }
+  .top-bar { padding: 8px 20px 4px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .back-btn { width: 38px; height: 38px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border-mid); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-primary); -webkit-tap-highlight-color: transparent; box-shadow: 0 1px 3px rgba(0,0,0,0.06); flex-shrink: 0; transition: background 0.15s; }
+  .back-btn:active { background: var(--surface-2); }
+  .top-bar-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(52,102,255,0.4); } 70% { box-shadow: 0 0 0 32px rgba(52,102,255,0); } 100% { box-shadow: 0 0 0 0 rgba(52,102,255,0); } }
+
+  /* HOME HEADER */
+  .home-header { padding: 20px 20px 16px; text-align: center; flex-shrink: 0; opacity: 0; animation: fadeUp 0.5s ease forwards 0.05s; }
+  .greeting { font-family: 'Lora', serif; font-size: 28px; color: var(--text-primary); line-height: 1.2; font-weight: 600; margin-bottom: 4px; }
+  .subgreeting { font-size: 13px; color: var(--text-secondary); }
+
+  /* BLUE NEARBY BAR */
+  .nearby-bar { display: flex; align-items: center; gap: 8px; background: var(--brand-light); border: 1px solid var(--brand-mid); border-radius: var(--radius-xs); padding: 10px 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 0.15s; margin: 0 20px 20px; opacity: 0; animation: fadeUp 0.5s ease forwards 0.1s; }
+  .nearby-bar:active { background: rgba(52,102,255,0.14); }
+  .nearby-bar .mi { font-size: 16px; color: var(--brand); flex-shrink: 0; }
+  .nearby-bar-text { font-size: 12px; color: var(--brand); font-weight: 600; line-height: 1.4; flex: 1; }
+  .nearby-bar-arrow .mi { font-size: 16px; color: var(--brand); opacity: 0.6; }
+
+  .home-scroll-inner { padding: 0 20px 40px; }
+
+  /* NEXT STOP LABEL */
+  .next-stop-label { font-family: 'Lora', serif; font-size: 22px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px; opacity: 0; animation: fadeUp 0.5s ease forwards 0.15s; }
+
+  /* ACTIVE BLOCK */
+  .active-block { background: var(--brand); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(52,102,255,0.28); opacity: 0; animation: fadeUp 0.5s ease forwards 0.2s; }
+  .active-block::before { content: ''; position: absolute; top: -50px; right: -30px; width: 150px; height: 150px; border-radius: 50%; background: rgba(255,255,255,0.07); }
+  .active-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.55); margin-bottom: 8px; }
+  .active-name { font-size: 20px; font-weight: 700; color: white; margin-bottom: 2px; }
+  .active-contact { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 14px; }
+  .brief-preview { margin-bottom: 16px; }
+  .brief-preview-item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.12); }
+  .brief-preview-item:last-child { border-bottom: none; }
+  .brief-preview-dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.5); flex-shrink: 0; margin-top: 6px; }
+  .brief-preview-text { font-size: 12px; color: rgba(255,255,255,0.82); line-height: 1.5; }
+  .brief-preview-text strong { color: white; font-weight: 600; }
+  .active-block-btn { width: 100%; padding: 12px; border-radius: var(--radius-xs); font-size: 13px; font-weight: 700; font-family: 'Sora', sans-serif; cursor: pointer; border: none; text-align: center; -webkit-tap-highlight-color: transparent; transition: opacity 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; background: white; color: var(--brand); }
+  .active-block-btn:active { opacity: 0.85; }
+  .active-block-btn .mi { font-size: 15px; }
+
+  /* VOICE ORB SECTION */
+  .voice-section { margin-bottom: 24px; opacity: 0; animation: fadeUp 0.5s ease forwards 0.27s; }
+  .voice-prompt-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-align: center; margin-bottom: 14px; }
+
+  .voice-idle-wrap { display: flex; justify-content: center; }
+  .voice-orb { width: 80px; height: 80px; border-radius: 50%; background: var(--brand); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform 0.15s ease; box-shadow: 0 4px 20px rgba(52,102,255,0.3); }
+  .voice-orb:active { transform: scale(0.94); }
+  .voice-orb.listening { animation: pulse 1.4s ease-in-out infinite; }
+  .voice-orb .mi { font-size: 36px; color: white; }
+  .voice-status-text { text-align: center; font-size: 12px; color: var(--text-muted); font-weight: 500; margin-top: 10px; }
+
+  /* VOICE RESULT INLINE */
+  .voice-result-card { background: var(--surface); border: 1px solid var(--border-mid); border-radius: var(--radius-sm); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); display: none; margin-bottom: 20px; }
+  .voice-result-card.show { display: block; animation: fadeUp 0.4s ease forwards; }
+  .transcript-preview { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .transcript-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 6px; }
+  .transcript-preview-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; font-style: italic; }
+  .rerecord-row { display: flex; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  .rerecord-btn { flex: 1; padding: 13px 10px; border-radius: var(--radius-xs); font-size: 12px; font-weight: 700; font-family: 'Sora', sans-serif; cursor: pointer; -webkit-tap-highlight-color: transparent; text-align: center; border: none; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .rerecord-btn .mi { font-size: 15px; }
+  .rerecord-btn.outline { background: var(--surface-2); border: 1px solid var(--border-mid); color: var(--text-primary); }
+  .rerecord-btn.ghost { background: var(--surface-2); border: 1px solid var(--border-mid); color: var(--brand); }
+  .structured-rows { padding: 4px 0; }
+  .structured-row { display: flex; gap: 12px; align-items: flex-start; padding: 8px 16px; border-bottom: 1px solid var(--border); }
+  .structured-row:last-child { border-bottom: none; }
+  .structured-key { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); width: 78px; flex-shrink: 0; padding-top: 2px; }
+  .structured-val { font-size: 13px; color: var(--text-primary); line-height: 1.5; flex: 1; font-weight: 500; }
+  .tag { display: inline-block; background: var(--brand-light); color: var(--brand); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 100px; border: 1px solid var(--brand-mid); margin-right: 4px; margin-bottom: 3px; }
+  .ai-nudge-row { display: flex; gap: 10px; align-items: flex-start; padding: 12px 16px; background: var(--brand-light); border-top: 1px solid var(--brand-mid); }
+  .ai-nudge-row .mi { font-size: 16px; color: var(--brand); flex-shrink: 0; margin-top: 1px; }
+  .ai-nudge-text { font-size: 12px; color: var(--text-primary); line-height: 1.5; font-weight: 500; }
+  .save-row { padding: 12px 16px; }
+  .btn-save { width: 100%; background: var(--brand); color: white; border: none; border-radius: var(--radius-xs); padding: 13px; font-size: 14px; font-weight: 700; font-family: 'Sora', sans-serif; cursor: pointer; -webkit-tap-highlight-color: transparent; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 10px rgba(52,102,255,0.22); }
+  .btn-save:active { opacity: 0.85; }
+  .btn-save .mi { font-size: 18px; }
+
+  /* LAST VISIT PILL */
+  .last-visit-pill { display: inline-block; background: #F4C240; color: #0F1523; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 100px; }
+
+  /* PROMPT BAR */
+  .prompt-bar { flex-shrink: 0; background: var(--bg); border-top: 1px solid var(--border-mid); padding: 10px 16px 28px; }
+  .prompt-inner { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1.5px solid var(--border-mid); border-radius: 100px; padding: 11px 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .prompt-input { flex: 1; border: none; outline: none; background: none; font-size: 13px; font-family: 'Sora', sans-serif; color: var(--text-primary); }
+  .prompt-input::placeholder { color: var(--text-muted); }
+  .prompt-mic { color: var(--brand); cursor: pointer; display: flex; align-items: center; -webkit-tap-highlight-color: transparent; flex-shrink: 0; }
+  .prompt-mic .mi { font-size: 22px; }
+  .nearby-sheet-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .nearby-sheet-close { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border-mid); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); -webkit-tap-highlight-color: transparent; }
+  .nearby-sheet-close .mi { font-size: 18px; }
+
+  /* NEARBY MODAL SHEET */
+  .nearby-sheet { position: absolute; inset: 0; background: rgba(0,0,0,0.35); z-index: 300; display: none; align-items: flex-end; }
+  .nearby-sheet.show { display: flex; animation: fadeIn 0.2s ease forwards; }
+  .nearby-sheet-inner { background: var(--surface); border-radius: 24px 24px 0 0; padding: 20px 20px 40px; width: 100%; animation: slideUp 0.3s ease forwards; }
+  .nearby-sheet-handle { width: 36px; height: 4px; background: var(--surface-3); border-radius: 2px; margin: 0 auto 20px; }
+  .nearby-sheet-title { font-family: 'Lora', serif; font-size: 22px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+  .nearby-sheet-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
+  .overdue-card { background: var(--surface-2); border: 1px solid var(--border-mid); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 10px; }
+  .overdue-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+  .overdue-meta { font-size: 11px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 10px; }
+  .overdue-meta .days { font-weight: 700; color: var(--danger); }
+  .overdue-meta .dist { color: var(--text-muted); }
+  .overdue-meta .last-note { font-style: italic; }
+  .overdue-actions { display: flex; gap: 8px; }
+  .overdue-btn { flex: 1; padding: 9px 12px; border-radius: var(--radius-xs); font-size: 12px; font-weight: 700; font-family: 'Sora', sans-serif; cursor: pointer; border: none; -webkit-tap-highlight-color: transparent; text-align: center; }
+  .overdue-btn.add { background: var(--brand); color: white; }
+  .overdue-btn.schedule { background: var(--surface-3); color: var(--text-primary); border: 1px solid var(--border-mid); }
+
+  /* STOP DETAIL */
+  .visit-header { padding: 12px 20px 16px; opacity: 0; animation: fadeUp 0.5s ease forwards 0.05s; flex-shrink: 0; }
+  .visit-company { font-family: 'Lora', serif; font-size: 26px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+  .visit-meta-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta-pill { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 100px; }
+  .meta-pill.neutral { background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-mid); }
+  .meta-pill.warn { background: var(--warning-light); color: var(--warning); border: 1px solid rgba(224,122,0,0.2); }
+  .brief-scroll { padding: 0 20px 8px; }
+  .brief-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); opacity: 0; animation: fadeUp 0.5s ease forwards; }
+  .brief-card:nth-child(1) { animation-delay: 0.08s; }
+  .brief-card:nth-child(2) { animation-delay: 0.15s; }
+  .brief-card:nth-child(3) { animation-delay: 0.22s; }
+  .brief-card:nth-child(4) { animation-delay: 0.29s; }
+  .brief-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .brief-card-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--brand-light); }
+  .brief-card-icon .mi { font-size: 17px; color: var(--brand); }
+  .brief-card-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+  .brief-item { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .brief-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .brief-dot { width: 6px; height: 6px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; background: var(--brand); }
+  .brief-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .brief-text strong { color: var(--text-primary); font-weight: 600; }
+  .ai-insight-card { background: var(--brand-light); border: 1px solid var(--brand-mid); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 10px; opacity: 0; animation: fadeUp 0.5s ease forwards 0.05s; }
+  .ai-insight-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .ai-insight-header .mi { font-size: 16px; color: var(--brand); }
+  .ai-insight-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--brand); }
+  .ai-insight-item { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; border-bottom: 1px solid var(--brand-mid); }
+  .ai-insight-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .ai-insight-text { font-size: 13px; color: var(--text-primary); line-height: 1.5; font-weight: 500; }
+  .detail-action-wrap { padding: 12px 20px 32px; flex-shrink: 0; background: linear-gradient(to top, var(--bg) 80%, transparent); }
+  .btn-primary { background: var(--brand); color: white; border: none; border-radius: var(--radius-sm); padding: 15px; font-size: 14px; font-weight: 700; font-family: 'Sora', sans-serif; cursor: pointer; -webkit-tap-highlight-color: transparent; box-shadow: 0 2px 10px rgba(52,102,255,0.22); transition: opacity 0.15s; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+  .btn-primary:active { opacity: 0.85; }
+  .btn-primary .mi { font-size: 18px; }
+
+  /* UNDO TOAST */
+  .undo-toast { position: absolute; bottom: 24px; left: 20px; right: 20px; background: var(--text-primary); border-radius: var(--radius-sm); padding: 13px 16px; align-items: center; justify-content: space-between; z-index: 200; box-shadow: 0 4px 16px rgba(0,0,0,0.18); display: none; }
+  .undo-toast.show { display: flex; animation: slideDown 0.3s ease forwards; }
+  .undo-text { font-size: 13px; color: rgba(255,255,255,0.85); }
+  .undo-btn { font-size: 13px; font-weight: 700; color: #7FA8FF; cursor: pointer; font-family: 'Sora', sans-serif; background: none; border: none; padding: 0; flex-shrink: 0; }
+
+  /* SCHEDULE MODAL */
+  .modal-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.35); z-index: 400; display: none; align-items: flex-end; }
+  .modal-overlay.show { display: flex; animation: fadeIn 0.2s ease forwards; }
+  .modal-sheet { background: var(--surface); border-radius: 24px 24px 0 0; padding: 20px 20px 40px; width: 100%; animation: slideUp 0.3s ease forwards; }
+  .modal-handle { width: 36px; height: 4px; background: var(--surface-3); border-radius: 2px; margin: 0 auto 20px; }
+  .modal-title { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+  .modal-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
+  .day-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .day-option { background: var(--surface-2); border: 1px solid var(--border-mid); border-radius: var(--radius-sm); padding: 14px 16px; font-size: 14px; font-weight: 600; color: var(--text-primary); cursor: pointer; -webkit-tap-highlight-color: transparent; display: flex; justify-content: space-between; align-items: center; transition: all 0.15s; }
+  .day-option:active { background: var(--brand-light); border-color: var(--brand-mid); color: var(--brand); }
+  .day-date { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .modal-cancel { width: 100%; padding: 14px; background: none; border: 1px solid var(--border-mid); border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; font-family: 'Sora', sans-serif; color: var(--text-secondary); cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="status-bar">
+      <span class="status-time">9:14 AM</span>
+      <div class="status-icons">
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="none"><rect x="0" y="3" width="3" height="9" rx="1" fill="currentColor" opacity="0.4"/><rect x="4.5" y="2" width="3" height="10" rx="1" fill="currentColor" opacity="0.6"/><rect x="9" y="0" width="3" height="12" rx="1" fill="currentColor"/><rect x="13.5" y="0" width="2" height="12" rx="1" fill="currentColor"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-opacity="0.35"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.4 24.5 6C24.5 5.6 23.8 4.8 23 4.5Z" fill="currentColor" opacity="0.4"/></svg>
+      </div>
+    </div>
+
+    <div class="home-header">
+      <div class="greeting">Hi, Alex.</div>
+      <div class="subgreeting">Here's what I've got ready for you.</div>
+    </div>
+
+    <div class="scroll-area">
+
+      <!-- BLUE NEARBY BAR -->
+      <div class="nearby-bar" id="nearby-bar" onclick="showNearbySheet()">
+        <span class="mi">auto_awesome</span>
+        <span class="nearby-bar-text" id="nearby-bar-text">Great Lakes Auto is 47 days overdue and 1.2 miles away.</span>
+        <span class="nearby-bar-arrow"><span class="mi">chevron_right</span></span>
+      </div>
+
+      <div class="home-scroll-inner">
+
+        <!-- NEXT STOP -->
+        <div class="next-stop-label">Next Stop</div>
+
+        <div class="active-block">
+          <div class="active-eyebrow">I've got you ready.</div>
+          <div class="active-name" id="active-name">Midwest Packaging Co.</div>
+          <div style="margin-bottom:10px;"><span class="last-visit-pill" id="active-last-visit">23 days since last visit</span></div>
+          <div class="active-contact" id="active-contact">Dave Kowalski · Purchasing Manager · 0.4 mi</div>
+          <div class="brief-preview" id="brief-preview-1">
+            <div class="brief-preview-item"><div class="brief-preview-dot"></div><div class="brief-preview-text"><strong>Q3 expansion confirmed.</strong> They need 40% more volume and lead times are an opening.</div></div>
+            <div class="brief-preview-item"><div class="brief-preview-dot"></div><div class="brief-preview-text"><strong>Contract renewal in 6 weeks.</strong> This conversation hasn't started yet.</div></div>
+            <div class="brief-preview-item"><div class="brief-preview-dot"></div><div class="brief-preview-text">His son just started college. <strong>Lead with that.</strong></div></div>
+          </div>
+          <div class="brief-preview" id="brief-preview-2" style="display:none;">
+            <div class="brief-preview-item"><div class="brief-preview-dot"></div><div class="brief-preview-text"><strong>Delayed reorder on cutting tools.</strong> Marcus flagged supply chain issues last visit.</div></div>
+            <div class="brief-preview-item"><div class="brief-preview-dot"></div><div class="brief-preview-text"><strong>New plant manager started last month.</strong> Build that relationship early.</div></div>
+            <div class="brief-preview-item"><div class="brief-preview-dot"></div><div class="brief-preview-text">Evaluating vendors in Q4. <strong>Don't let this one sit.</strong></div></div>
+          </div>
+          <button class="active-block-btn" onclick="showScreen('screen-stopdetail')"><span class="mi">description</span> Full brief</button>
+        </div>
+
+        <!-- VOICE ORB -->
+        <div class="voice-section">
+          <div class="voice-prompt-label" id="voice-prompt-label">How'd it go?</div>
+          <div class="voice-idle-wrap" id="voice-idle-wrap">
+            <div>
+              <div style="display:flex; justify-content:center;">
+                <div class="voice-orb" id="voice-orb" onclick="startListening()">
+                  <span class="mi">mic</span>
+                </div>
+              </div>
+              <div class="voice-status-text" id="voice-status-text">Tap to record your visit notes</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VOICE RESULT -->
+        <div class="voice-result-card" id="voice-result-card">
+          <div class="transcript-preview">
+            <div class="transcript-label">What you said</div>
+            <div class="transcript-preview-text">"Good visit. Dave confirmed they're moving forward with the Q3 expansion -- they need an extra 40% volume. He seemed open to switching suppliers if we can guarantee the lead times. Wants a formal proposal by end of next week. Also asked again about eco materials. Overall pretty positive."</div>
+          </div>
+          <div class="rerecord-row">
+            <button class="rerecord-btn outline" onclick="resetVoice()"><span class="mi">replay</span> Re-Record</button>
+            <button class="rerecord-btn ghost" onclick="resetVoice()"><span class="mi">add</span> Add More</button>
+          </div>
+          <div class="structured-rows">
+            <div class="structured-row"><div class="structured-key">Outcome</div><div class="structured-val">Positive. Q3 expansion confirmed, +40% volume</div></div>
+            <div class="structured-row"><div class="structured-key">Next step</div><div class="structured-val">Send formal proposal by end of next week</div></div>
+            <div class="structured-row"><div class="structured-key">Follow-up</div><div class="structured-val">Eco-friendly materials in the proposal</div></div>
+            <div class="structured-row"><div class="structured-key">Key Insights</div><div class="structured-val"><span class="tag">Supplier switch intent</span><span class="tag">Lead time sensitive</span></div></div>
+          </div>
+          <div class="ai-nudge-row">
+            <span class="mi">auto_awesome</span>
+            <div class="ai-nudge-text">Third consecutive positive visit with Midwest Packaging. Good moment to ask for a referral or introduction.</div>
+          </div>
+          <div class="save-row">
+            <button class="btn-save" onclick="advanceToNextStop()"><span class="mi">check</span> Save Visit</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="prompt-bar">
+      <div class="prompt-inner">
+        <input class="prompt-input" type="text" placeholder="Ask about a stop, account, or route..." />
+        <div class="prompt-mic"><span class="mi">mic</span></div>
+      </div>
+    </div>
+
+    <div class="undo-toast" id="undo-toast"><span class="undo-text" id="undo-text"></span><button class="undo-btn" onclick="undoDismiss()">Undo</button></div>
+
+    <!-- NEARBY SHEET -->
+    <div class="nearby-sheet" id="nearby-sheet" onclick="closeNearbySheet(event)">
+      <div class="nearby-sheet-inner">
+        <div class="nearby-sheet-handle"></div>
+        <div class="nearby-sheet-header">
+          <div class="nearby-sheet-title">Accounts Nearby</div>
+          <div class="nearby-sheet-close" onclick="document.getElementById('nearby-sheet').classList.remove('show')"><span class="mi">close</span></div>
+        </div>
+        <div class="nearby-sheet-sub">Past their visit cadence within 20 miles of you.</div>
+        <div class="overdue-card">
+          <div class="overdue-name">Great Lakes Auto</div>
+          <div class="overdue-meta">Sarah Chen · <span class="days">47 days overdue</span> · <span class="dist">1.2 mi away</span><br><span class="last-note">Last visit: Discussed fleet expansion interest</span></div>
+          <div class="overdue-actions"><button class="overdue-btn add" onclick="addToRoute('Great Lakes Auto')">Add to Today</button><button class="overdue-btn schedule" onclick="showScheduleModal('Great Lakes Auto')">Schedule</button></div>
+        </div>
+        <div class="overdue-card">
+          <div class="overdue-name">Nortek Manufacturing</div>
+          <div class="overdue-meta">Phil Norris · <span class="days">38 days overdue</span> · <span class="dist">6.4 mi away</span><br><span class="last-note">Last visit: Interested in bulk pricing options</span></div>
+          <div class="overdue-actions"><button class="overdue-btn add" onclick="addToRoute('Nortek Manufacturing')">Add to Today</button><button class="overdue-btn schedule" onclick="showScheduleModal('Nortek Manufacturing')">Schedule</button></div>
+        </div>
+        <div class="overdue-card">
+          <div class="overdue-name">Riverside Logistics</div>
+          <div class="overdue-meta">Dana White · <span class="days">31 days overdue</span> · <span class="dist">11.2 mi away</span><br><span class="last-note">Last visit: Renewal conversation, seemed warm</span></div>
+          <div class="overdue-actions"><button class="overdue-btn add" onclick="addToRoute('Riverside Logistics')">Add to Today</button><button class="overdue-btn schedule" onclick="showScheduleModal('Riverside Logistics')">Schedule</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STOP DETAIL -->
+  <div class="screen" id="screen-stopdetail">
+    <div class="status-bar"><span class="status-time">9:14 AM</span><div class="status-icons"><svg width="16" height="12" viewBox="0 0 16 12" fill="none"><rect x="0" y="3" width="3" height="9" rx="1" fill="currentColor" opacity="0.4"/><rect x="4.5" y="2" width="3" height="10" rx="1" fill="currentColor" opacity="0.6"/><rect x="9" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-opacity="0.35"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/><path d="M23 4.5V7.5C23.8 7.2 24.5 6.4 24.5 6C24.5 5.6 23.8 4.8 23 4.5Z" fill="currentColor" opacity="0.4"/></svg></div></div>
+    <div class="top-bar"><div class="back-btn" onclick="showScreen('screen-home')"><span class="mi">arrow_back</span></div><span class="top-bar-title">Stop Brief</span></div>
+    <div class="visit-header">
+      <div class="visit-company" id="detail-company">Midwest Packaging Co.</div>
+      <div class="visit-meta-row" id="detail-meta"><span class="meta-pill neutral">Dave Kowalski</span><span class="last-visit-pill">23 days since last visit</span></div>
+    </div>
+    <div class="scroll-area" style="padding:0;">
+      <div class="brief-scroll" id="brief-midwest">
+        <div class="ai-insight-card">
+          <div class="ai-insight-header"><span class="mi">auto_awesome</span><span class="ai-insight-label">Copilot insight</span></div>
+          <div class="ai-insight-item"><div class="brief-dot"></div><div class="ai-insight-text">Based on your last 4 visits, Dave responds better when you open with something personal before getting into business. He's mentioned his family in 3 of those conversations.</div></div>
+          <div class="ai-insight-item"><div class="brief-dot"></div><div class="ai-insight-text">His contract renews in 6 weeks and you haven't started that conversation. Two other accounts you handled this way last quarter both renewed early.</div></div>
+        </div>
+        <div class="brief-card">
+          <div class="brief-card-header"><div class="brief-card-icon"><span class="mi">bar_chart</span></div><div class="brief-card-label">Active business</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text"><strong>Open order:</strong> 400 units corrugated, expected delivery next Friday.</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text"><strong>Contract renewal</strong> due in 6 weeks. No renewal conversation started yet.</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text"><strong>YTD spend:</strong> $84,200, up 12% vs. last year.</div></div>
+        </div>
+        <div class="brief-card">
+          <div class="brief-card-header"><div class="brief-card-icon"><span class="mi">chat_bubble_outline</span></div><div class="brief-card-label">Last conversation</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">Dave mentioned they're <strong>expanding their distribution line in Q3</strong> and would need additional packaging volume.</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">Expressed frustration with <strong>lead times from their current supplier.</strong> This is an opening.</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">Mentioned his son just started college. <strong>Good personal touchpoint.</strong></div></div>
+        </div>
+        <div class="brief-card">
+          <div class="brief-card-header"><div class="brief-card-icon"><span class="mi">warning_amber</span></div><div class="brief-card-label">Open follow-ups</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">You said you'd send a <strong>custom volume pricing sheet.</strong> Confirm this was delivered.</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">Dave asked about <strong>eco-friendly material options.</strong> Come prepared with specifics.</div></div>
+        </div>
+        <div class="brief-card">
+          <div class="brief-card-header"><div class="brief-card-icon"><span class="mi">track_changes</span></div><div class="brief-card-label">Suggested talking points</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">Q3 expansion -- position capacity to <strong>handle volume without the lead time issues</strong> they're experiencing.</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">Contract renewal is 6 weeks out. <strong>Start that conversation now</strong> before it becomes urgent.</div></div>
+        </div>
+      </div>
+      <div class="brief-scroll" id="brief-detroit" style="display:none;">
+        <div class="ai-insight-card">
+          <div class="ai-insight-header"><span class="mi">auto_awesome</span><span class="ai-insight-label">Copilot insight</span></div>
+          <div class="ai-insight-item"><div class="brief-dot"></div><div class="ai-insight-text">Marcus makes decisions quickly when supply risk feels real. Lead with your reliability record and current inventory levels.</div></div>
+          <div class="ai-insight-item"><div class="brief-dot"></div><div class="ai-insight-text">A new plant manager started last month. Building that relationship now puts you ahead of competitors who haven't made the effort yet.</div></div>
+        </div>
+        <div class="brief-card">
+          <div class="brief-card-header"><div class="brief-card-icon"><span class="mi">bar_chart</span></div><div class="brief-card-label">Active business</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text"><strong>Delayed reorder pending:</strong> cutting tools, held up by supply chain review.</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text"><strong>YTD spend:</strong> $51,400, flat vs. last year.</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">No open contract. Currently buying on purchase orders.</div></div>
+        </div>
+        <div class="brief-card">
+          <div class="brief-card-header"><div class="brief-card-icon"><span class="mi">chat_bubble_outline</span></div><div class="brief-card-label">Last conversation</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">Marcus flagged <strong>supply chain concerns</strong> as their biggest operational headache right now.</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">Mentioned they're <strong>evaluating vendors in Q4</strong> across all major categories. Key window.</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">Seemed pressed for time. Keep this one tight and specific.</div></div>
+        </div>
+        <div class="brief-card">
+          <div class="brief-card-header"><div class="brief-card-icon"><span class="mi">track_changes</span></div><div class="brief-card-label">Suggested talking points</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">Lead with reliability. <strong>Bring your on-time delivery rate</strong> and relevant case studies.</div></div>
+          <div class="brief-item"><div class="brief-dot"></div><div class="brief-text">Ask to meet the new plant manager. <strong>Position yourself as a partner, not a vendor.</strong></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-action-wrap">
+      <button class="btn-primary" onclick="showScreen('screen-home')"><span class="mi">arrow_back</span> Back</button>
+    </div>
+  </div>
+
+  <!-- SCHEDULE MODAL -->
+  <div class="modal-overlay" id="schedule-modal" onclick="closeModal(event)">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="modal-account-name">Schedule Visit</div>
+      <div class="modal-sub">Pick a day to add this to your route.</div>
+      <div class="day-options">
+        <div class="day-option" onclick="scheduleDay('Tomorrow')">Tomorrow <span class="day-date">Tue, Apr 29</span></div>
+        <div class="day-option" onclick="scheduleDay('Wednesday')">Wednesday <span class="day-date">Wed, Apr 30</span></div>
+        <div class="day-option" onclick="scheduleDay('Thursday')">Thursday <span class="day-date">Thu, May 1</span></div>
+        <div class="day-option" onclick="scheduleDay('Friday')">Friday <span class="day-date">Fri, May 2</span></div>
+      </div>
+      <button class="modal-cancel" onclick="document.getElementById('schedule-modal').classList.remove('show')">Cancel</button>
+    </div>
+  </div>
+
+</div>
+<script>
+  let currentScheduleAccount = '';
+  let undoTimer;
+  let isListening = false;
+  let onSecondStop = false;
+
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if (id === 'screen-stopdetail') {
+      if (onSecondStop) {
+        document.getElementById('brief-midwest').style.display = 'none';
+        document.getElementById('brief-detroit').style.display = 'block';
+        document.getElementById('detail-company').textContent = 'Detroit Tool & Die';
+        document.getElementById('detail-meta').innerHTML = '<span class="meta-pill neutral">Marcus Reid</span><span class="last-visit-pill">12 days since last visit</span>';
+      } else {
+        document.getElementById('brief-midwest').style.display = 'block';
+        document.getElementById('brief-detroit').style.display = 'none';
+        document.getElementById('detail-company').textContent = 'Midwest Packaging Co.';
+        document.getElementById('detail-meta').innerHTML = '<span class="meta-pill neutral">Dave Kowalski</span><span class="last-visit-pill">23 days since last visit</span>';
+      }
+    }
+  }
+
+  function startListening() {
+    if (isListening) return;
+    isListening = true;
+    const orb = document.getElementById('voice-orb');
+    const status = document.getElementById('voice-status-text');
+    const label = document.getElementById('voice-prompt-label');
+    orb.classList.add('listening');
+    status.textContent = 'Listening...';
+    label.textContent = 'I\'m listening...';
+    setTimeout(() => {
+      status.textContent = 'Processing...';
+      label.textContent = 'Got it. Structuring your notes.';
+      orb.classList.remove('listening');
+      setTimeout(() => {
+        document.getElementById('voice-idle-wrap').style.display = 'none';
+        document.getElementById('voice-result-card').classList.add('show');
+        label.style.display = 'none';
+      }, 700);
+    }, 2800);
+  }
+
+  function resetVoice() {
+    isListening = false;
+    document.getElementById('voice-idle-wrap').style.display = 'flex';
+    document.getElementById('voice-result-card').classList.remove('show');
+    document.getElementById('voice-orb').classList.remove('listening');
+    document.getElementById('voice-status-text').textContent = 'Tap to record your visit notes';
+    document.getElementById('voice-prompt-label').textContent = 'How\'d it go?';
+    document.getElementById('voice-prompt-label').style.display = 'block';
+  }
+
+  function advanceToNextStop() {
+    onSecondStop = true;
+    document.getElementById('active-name').textContent = 'Detroit Tool & Die';
+    document.getElementById('active-contact').textContent = 'Marcus Reid · Territory Manager · 2.1 mi';
+    document.getElementById('active-last-visit').textContent = '12 days since last visit';
+    document.getElementById('brief-preview-1').style.display = 'none';
+    document.getElementById('brief-preview-2').style.display = 'block';
+    document.getElementById('nearby-bar-text').textContent = 'Nortek Manufacturing is 38 days overdue and 6.4 miles away.';
+    resetVoice();
+    showScreen('screen-home');
+    document.querySelector('.scroll-area').scrollTo(0, 0);
+  }
+  function showNearbySheet() {
+    document.getElementById('nearby-sheet').classList.add('show');
+  }
+
+  function closeNearbySheet(e) {
+    if (e.target === document.getElementById('nearby-sheet')) {
+      document.getElementById('nearby-sheet').classList.remove('show');
+    }
+  }
+
+  function addToRoute(name) {
+    document.getElementById('nearby-sheet').classList.remove('show');
+    showUndoToast(name + ' added to today\'s route.');
+  }
+
+  function showUndoToast(message) {
+    const toast = document.getElementById('undo-toast');
+    document.getElementById('undo-text').textContent = message;
+    toast.classList.add('show');
+    clearTimeout(undoTimer);
+    undoTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+  }
+
+  function undoDismiss() { document.getElementById('undo-toast').classList.remove('show'); }
+
+  function showScheduleModal(name) {
+    currentScheduleAccount = name;
+    document.getElementById('nearby-sheet').classList.remove('show');
+    document.getElementById('modal-account-name').textContent = 'Schedule · ' + name;
+    document.getElementById('schedule-modal').classList.add('show');
+  }
+
+  function closeModal(e) { if (e.target === document.getElementById('schedule-modal')) document.getElementById('schedule-modal').classList.remove('show'); }
+
+  function scheduleDay(day) {
+    document.getElementById('schedule-modal').classList.remove('show');
+    showUndoToast(currentScheduleAccount + ' scheduled for ' + day + '.');
+  }
+</script>
+<script>
+  function scalePhone() {
+    const phone = document.querySelector('.phone');
+    const pw = 390, ph = 844;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const padding = 40;
+    const scale = Math.min((vw - padding) / pw, (vh - padding) / ph, 1);
+    phone.style.transform = 'scale(' + scale + ')';
+  }
+  scalePhone();
+  window.addEventListener('resize', scalePhone);
+</script>
+</body>
+</html>
